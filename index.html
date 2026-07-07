@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>방학 시간표 관리</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --text:#1f2430; --sub:#6b7280; --line:#e5e8f0;
+    --accent:#4f7cff; --accent-light:#eaf0ff; --danger:#ef4444; --radius:14px;
+    --c-study:#4f7cff; --c-exercise:#33b679; --c-meal:#ffa726; --c-hobby:#9c6ade; --c-rest:#8a8f98; --c-etc:#26a69a;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Pretendard","Malgun Gothic",-apple-system,sans-serif;background:var(--bg);color:var(--text);}
+  header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  header h1{font-size:18px;margin:0;display:flex;align-items:center;gap:8px;}
+  header h1 .sub{font-size:12px;color:var(--sub);font-weight:400;}
+  .btns{display:flex;gap:8px;}
+  button{cursor:pointer;border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;background:var(--accent-light);color:var(--accent);}
+  button:hover{filter:brightness(0.97);}
+  button.primary{background:var(--accent);color:#fff;}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+  button.danger{background:#fee2e2;color:var(--danger);}
+  button:disabled{opacity:0.45;cursor:not-allowed;}
+  nav{display:flex;gap:4px;padding:10px 18px 0;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto;}
+  nav button.tab{background:transparent;border-radius:10px 10px 0 0;color:var(--sub);padding:10px 16px;font-size:14px;white-space:nowrap;}
+  nav button.tab.active{background:var(--bg);color:var(--accent);}
+  main{max-width:980px;margin:0 auto;padding:20px 16px 60px;}
+  .card{background:var(--card);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,0.03);}
+  .card h2{margin:0 0 12px;font-size:16px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+  label{font-size:13px;color:var(--sub);display:block;margin-bottom:4px;}
+  input[type=text],input[type=date],input[type=time],select,textarea{
+    font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fbfbfe;color:var(--text);
+  }
+  textarea{width:100%;resize:vertical;min-height:60px;}
+  .field{display:flex;flex-direction:column;}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px;}
+
+  /* 시간표 틀 그리드 */
+  .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;}
+  .day-col{background:#fbfbfe;border:1px solid var(--line);border-radius:10px;padding:8px;min-height:80px;}
+  .day-col h3{font-size:13px;margin:0 0 8px;text-align:center;color:var(--sub);}
+  .slot{border-radius:8px;padding:6px 8px;margin-bottom:6px;font-size:12px;color:#fff;cursor:pointer;}
+  .slot .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:4px;}
+  .slot .lbl{overflow-wrap:anywhere;}
+  .slot .t{font-size:10px;opacity:0.85;display:block;white-space:nowrap;margin-top:2px;}
+  .slot .del{flex-shrink:0;font-size:11px;opacity:0.85;background:rgba(0,0,0,0.18);border-radius:50%;width:16px;height:16px;line-height:16px;text-align:center;color:#fff;}
+  .add-slot-btn{width:100%;font-size:11px;padding:6px;background:transparent;border:1px dashed var(--line);color:var(--sub);border-radius:8px;}
+
+  /* 오늘 체크 */
+  .checklist-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;}
+  .checklist-item .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .checklist-item .lbl{flex:1;}
+  .checklist-item .lbl .t{font-size:11px;color:var(--sub);display:block;}
+  .checklist-item.done{background:#f3fdf6;}
+  .checklist-item.done .lbl{text-decoration:line-through;color:var(--sub);}
+  .todo-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);}
+  .todo-row span{flex:1;}
+  .todo-row.done span{text-decoration:line-through;color:var(--sub);}
+
+  /* 통계 */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:10px;}
+  .stat-box{background:var(--accent-light);border-radius:10px;padding:14px;text-align:center;}
+  .stat-box .num{font-size:24px;font-weight:700;color:var(--accent);}
+  .stat-box .lab{font-size:12px;color:var(--sub);margin-top:2px;}
+  .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;}
+  .bar-row .name{width:64px;flex-shrink:0;color:var(--sub);white-space:nowrap;}
+  .bar-track{flex:1;background:#eef0f6;border-radius:6px;height:14px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:6px;}
+  .bar-row .pct{width:40px;text-align:right;font-size:12px;color:var(--sub);}
+  .heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .heat-cell{aspect-ratio:1;border-radius:4px;background:#eef0f6;font-size:9px;color:var(--sub);display:flex;align-items:center;justify-content:center;}
+
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:20px 0;}
+  #printArea{display:none;}
+
+  /* 슬롯 편집 모달 */
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,24,36,0.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;}
+  .modal-overlay.hidden{display:none;}
+  .modal-box{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:360px;}
+  .modal-box h3{margin:0 0 14px;font-size:16px;}
+  .modal-box .field{margin-bottom:12px;}
+  .modal-box .field input,.modal-box .field select{width:100%;}
+  .modal-box .cat-picker{display:flex;flex-wrap:wrap;gap:6px;}
+  .modal-box .cat-chip{padding:6px 10px;border-radius:20px;font-size:12px;color:#fff;cursor:pointer;opacity:0.5;}
+  .modal-box .cat-chip.selected{opacity:1;box-shadow:0 0 0 2px rgba(0,0,0,0.15);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+
+  @media (max-width:640px){
+    .week-grid{grid-template-columns:repeat(7,minmax(90px,1fr));overflow-x:auto;}
+    main{padding:14px 10px 50px;}
+  }
+
+  @media print{
+    header, nav, .card.no-print, #app{display:none !important;}
+    #printArea{display:block !important;}
+    body{background:#fff;}
+    #printArea table{width:100%;border-collapse:collapse;}
+    #printArea th,#printArea td{border:1px solid #ccc;padding:6px;font-size:11px;vertical-align:top;}
+    #printArea h1{font-size:18px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="no-print">
+  <h1>📅 방학 시간표 <span class="sub" id="rangeLabel"></span></h1>
+  <div class="btns">
+    <button class="ghost" id="btnPrint">🖨 인쇄</button>
+    <button class="ghost" id="btnExport">🖼 이미지 저장</button>
+  </div>
+</header>
+
+<nav class="no-print">
+  <button class="tab" data-tab="settings">설정</button>
+  <button class="tab" data-tab="template">시간표 틀</button>
+  <button class="tab" data-tab="today">오늘 체크</button>
+  <button class="tab" data-tab="stats">통계</button>
+</nav>
+
+<main id="app"></main>
+
+<div id="printArea"></div>
+
+<div id="slotModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="modalTitle">시간 블록 추가</h3>
+    <div class="field"><label>이름</label><input type="text" id="modalLabel" placeholder="예: 수학 공부"></div>
+    <div class="row">
+      <div class="field"><label>시작</label><input type="time" id="modalStart" value="09:00"></div>
+      <div class="field"><label>종료</label><input type="time" id="modalEnd" value="10:00"></div>
+    </div>
+    <div class="field"><label>카테고리</label><div class="cat-picker" id="modalCatPicker"></div></div>
+    <div class="modal-actions">
+      <button class="danger" id="modalDelete" style="display:none;margin-right:auto;">삭제</button>
+      <button class="ghost" id="modalCancel">취소</button>
+      <button class="primary" id="modalSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+var STORAGE_KEY = "vacationScheduleData_v1";
+var DAY_LABELS = ["일","월","화","수","목","금","토"]; // index = JS getDay()
+var DAY_ORDER = [1,2,3,4,5,6,0]; // 월~일 표시 순서
+var CATEGORIES = [
+  {key:"study", label:"공부", color:"var(--c-study)"},
+  {key:"exercise", label:"운동", color:"var(--c-exercise)"},
+  {key:"meal", label:"식사", color:"var(--c-meal)"},
+  {key:"hobby", label:"취미", color:"var(--c-hobby)"},
+  {key:"rest", label:"휴식/자유", color:"var(--c-rest)"},
+  {key:"etc", label:"기타", color:"var(--c-etc)"}
+];
+function catColor(key){ var c=CATEGORIES.find(function(c){return c.key===key;}); return c?c.color:"var(--c-etc)"; }
+function catLabel(key){ var c=CATEGORIES.find(function(c){return c.key===key;}); return c?c.label:"기타"; }
+
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function pad2(n){ return n<10 ? "0"+n : ""+n; }
+function todayStr(){
+  var d = new Date();
+  return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+}
+function weekdayOf(dateStr){
+  var p = dateStr.split("-").map(Number);
+  var d = new Date(p[0], p[1]-1, p[2]);
+  return d.getDay();
+}
+function addDays(dateStr, n){
+  var p = dateStr.split("-").map(Number);
+  var d = new Date(p[0], p[1]-1, p[2]);
+  d.setDate(d.getDate()+n);
+  return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+}
+function dateInRange(d, start, end){
+  if(start && d < start) return false;
+  if(end && d > end) return false;
+  return true;
+}
+
+function defaultState(){
+  var t = {};
+  for(var i=0;i<7;i++) t[i] = [];
+  return { meta:{startDate:"", endDate:"", name:""}, template:t, logs:{} };
+}
+
+var state = load();
+function load(){
+  try{
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return defaultState();
+    var parsed = JSON.parse(raw);
+    var def = defaultState();
+    parsed.meta = Object.assign(def.meta, parsed.meta||{});
+    parsed.template = parsed.template || def.template;
+    for(var i=0;i<7;i++){ if(!parsed.template[i]) parsed.template[i] = []; }
+    parsed.logs = parsed.logs || {};
+    return parsed;
+  }catch(e){ return defaultState(); }
+}
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); renderRangeLabel(); }
+
+function getLog(dateStr){
+  if(!state.logs[dateStr]) state.logs[dateStr] = { executed:{}, todos:[], note:"" };
+  if(!state.logs[dateStr].executed) state.logs[dateStr].executed = {};
+  if(!state.logs[dateStr].todos) state.logs[dateStr].todos = [];
+  return state.logs[dateStr];
+}
+
+/* ---------------- 탭 전환 ---------------- */
+var currentTab = "settings";
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll("nav .tab").forEach(function(b){
+    b.classList.toggle("active", b.dataset.tab===tab);
+  });
+  render();
+}
+document.querySelectorAll("nav .tab").forEach(function(b){
+  b.addEventListener("click", function(){ switchTab(b.dataset.tab); });
+});
+
+function renderRangeLabel(){
+  var el = document.getElementById("rangeLabel");
+  if(state.meta.startDate && state.meta.endDate){
+    el.textContent = "(" + state.meta.startDate + " ~ " + state.meta.endDate + (state.meta.name? " · "+state.meta.name : "") + ")";
+  } else {
+    el.textContent = "";
+  }
+}
+
+/* ---------------- 렌더 라우터 ---------------- */
+function render(){
+  var app = document.getElementById("app");
+  if(currentTab==="settings") app.innerHTML = renderSettings();
+  else if(currentTab==="template") app.innerHTML = renderTemplate();
+  else if(currentTab==="today") app.innerHTML = renderToday();
+  else app.innerHTML = renderStats();
+  bindTabEvents();
+  renderRangeLabel();
+  buildPrintArea();
+}
+
+/* ---------------- 설정 탭 ---------------- */
+function renderSettings(){
+  var m = state.meta;
+  return '' +
+  '<div class="card">' +
+    '<h2>방학 기간 설정</h2>' +
+    '<div class="row">' +
+      '<div class="field"><label>이름 (선택)</label><input type="text" id="inName" value="'+escAttr(m.name)+'" placeholder="예: 홍길동"></div>' +
+      '<div class="field"><label>시작일</label><input type="date" id="inStart" value="'+m.startDate+'"></div>' +
+      '<div class="field"><label>종료일</label><input type="date" id="inEnd" value="'+m.endDate+'"></div>' +
+    '</div>' +
+    '<p class="hint">시작일~종료일은 통계 탭의 실천율·달력 계산 범위로 쓰여요. 데이터는 이 기기의 브라우저에만 저장되고 서버로 전송되지 않아요.</p>' +
+  '</div>' +
+  '<div class="card">' +
+    '<h2>데이터 관리</h2>' +
+    '<div class="row">' +
+      '<button class="ghost" id="btnClearAll">전체 초기화</button>' +
+    '</div>' +
+    '<p class="hint">시간표 틀·체크 기록·할 일을 모두 지웁니다. 되돌릴 수 없어요.</p>' +
+  '</div>';
+}
+
+/* ---------------- 시간표 틀 탭 ---------------- */
+function renderTemplate(){
+  var cols = DAY_ORDER.map(function(dayIdx){
+    var slots = (state.template[dayIdx]||[]).slice().sort(function(a,b){ return a.start.localeCompare(b.start); });
+    var slotsHtml = slots.map(function(s){
+      return '<div class="slot" style="background:'+catColor(s.category)+'" data-day="'+dayIdx+'" data-id="'+s.id+'">' +
+        '<div class="top-row"><span class="lbl">'+escHtml(s.label||catLabel(s.category))+'</span>' +
+        '<span class="del" data-action="del-slot" data-day="'+dayIdx+'" data-id="'+s.id+'">×</span></div>' +
+        '<span class="t">'+s.start+'~'+s.end+'</span>' +
+      '</div>';
+    }).join("");
+    return '<div class="day-col">' +
+      '<h3>'+DAY_LABELS[dayIdx]+'</h3>' +
+      slotsHtml +
+      '<button class="add-slot-btn" data-action="add-slot" data-day="'+dayIdx+'">+ 추가</button>' +
+    '</div>';
+  }).join("");
+  return '<div class="card">' +
+    '<h2>요일별 시간표 틀</h2>' +
+    '<p class="hint">요일마다 반복되는 시간 블록을 만들어두면 "오늘 체크" 탭에서 자동으로 체크리스트가 생성돼요.</p>' +
+    '<div class="week-grid">'+cols+'</div>' +
+  '</div>';
+}
+
+/* ---------------- 오늘 체크 탭 ---------------- */
+var todaySelectedDate = todayStr();
+function renderToday(){
+  var d = todaySelectedDate;
+  var wd = weekdayOf(d);
+  var slots = (state.template[wd]||[]).slice().sort(function(a,b){ return a.start.localeCompare(b.start); });
+  var log = getLog(d);
+  var checklistHtml = slots.length ? slots.map(function(s){
+    var done = !!log.executed[s.id];
+    return '<div class="checklist-item '+(done?'done':'')+'" data-action="toggle-slot" data-id="'+s.id+'">' +
+      '<div class="dot" style="background:'+catColor(s.category)+'"></div>' +
+      '<div class="lbl">'+escHtml(s.label||catLabel(s.category))+'<span class="t">'+s.start+'~'+s.end+' · '+catLabel(s.category)+'</span></div>' +
+      '<input type="checkbox" '+(done?'checked':'')+' readonly>' +
+    '</div>';
+  }).join("") : '<div class="empty">이 요일('+DAY_LABELS[wd]+')에는 등록된 시간표 블록이 없어요. "시간표 틀" 탭에서 추가해보세요.</div>';
+
+  var todosHtml = log.todos.map(function(t){
+    return '<div class="todo-row '+(t.done?'done':'')+'" data-id="'+t.id+'">' +
+      '<input type="checkbox" data-action="toggle-todo" data-id="'+t.id+'" '+(t.done?'checked':'')+'>' +
+      '<span>'+escHtml(t.text)+'</span>' +
+      '<button class="danger" data-action="del-todo" data-id="'+t.id+'">삭제</button>' +
+    '</div>';
+  }).join("");
+
+  return '<div class="card">' +
+    '<h2>날짜 선택</h2>' +
+    '<input type="date" id="inTodayDate" value="'+d+'">' +
+  '</div>' +
+  '<div class="card">' +
+    '<h2>'+DAY_LABELS[wd]+'요일 시간표 실행 체크</h2>' +
+    checklistHtml +
+  '</div>' +
+  '<div class="card">' +
+    '<h2>오늘의 할 일</h2>' +
+    '<div class="row"><input type="text" id="inNewTodo" placeholder="할 일 입력 후 Enter" style="flex:1;"><button class="primary" id="btnAddTodo">추가</button></div>' +
+    '<div style="margin-top:10px;">'+(todosHtml||'<div class="empty">할 일이 없어요.</div>')+'</div>' +
+  '</div>' +
+  '<div class="card">' +
+    '<h2>메모</h2>' +
+    '<textarea id="inNote" placeholder="오늘 느낀 점, 특이사항 등">'+escHtml(log.note||"")+'</textarea>' +
+  '</div>';
+}
+
+/* ---------------- 통계 탭 ---------------- */
+function computeStats(){
+  var start = state.meta.startDate, end = state.meta.endDate;
+  var dates = Object.keys(state.logs).filter(function(d){ return dateInRange(d, start, end); }).sort();
+  var totalSlots=0, doneSlots=0;
+  var byWeekday = {}; for(var i=0;i<7;i++) byWeekday[i]={total:0,done:0};
+  var byCategory = {}; CATEGORIES.forEach(function(c){ byCategory[c.key]={total:0,done:0}; });
+  var dayRate = {}; // dateStr -> 0~1 (null이면 데이터없음)
+
+  dates.forEach(function(d){
+    var wd = weekdayOf(d);
+    var slots = state.template[wd]||[];
+    if(slots.length===0) return;
+    var log = state.logs[d];
+    var t=0,dn=0;
+    slots.forEach(function(s){
+      t++; totalSlots++;
+      byWeekday[wd].total++;
+      if(!byCategory[s.category]) byCategory[s.category]={total:0,done:0};
+      byCategory[s.category].total++;
+      if(log.executed[s.id]){
+        dn++; doneSlots++; byWeekday[wd].done++; byCategory[s.category].done++;
+      }
+    });
+    dayRate[d] = t>0 ? dn/t : null;
+  });
+
+  // streak: 오늘부터 거슬러 올라가며 "실천한 날"(슬롯 실행 1개 이상 또는 완료한 todo 1개 이상)이 연속되는 일수
+  var streak = 0;
+  var cursor = todayStr();
+  while(true){
+    var log = state.logs[cursor];
+    var wd = weekdayOf(cursor);
+    var hasTemplate = (state.template[wd]||[]).length>0;
+    if(!log){ break; }
+    var anyDone = Object.keys(log.executed||{}).some(function(k){ return log.executed[k]; }) ||
+                  (log.todos||[]).some(function(t){ return t.done; });
+    if(!anyDone){ break; }
+    streak++;
+    cursor = addDays(cursor, -1);
+    if(streak>3650) break;
+  }
+
+  return { totalSlots:totalSlots, doneSlots:doneSlots, byWeekday:byWeekday, byCategory:byCategory, dayRate:dayRate, streak:streak, dates:dates };
+}
+
+function renderStats(){
+  var s = computeStats();
+  var overallPct = s.totalSlots>0 ? Math.round(s.doneSlots/s.totalSlots*100) : 0;
+
+  var weekdayBars = DAY_ORDER.map(function(wd){
+    var b = s.byWeekday[wd];
+    var pct = b.total>0 ? Math.round(b.done/b.total*100) : 0;
+    return '<div class="bar-row"><div class="name">'+DAY_LABELS[wd]+'요일</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:var(--accent);"></div></div><div class="pct">'+pct+'%</div></div>';
+  }).join("");
+
+  var catBars = CATEGORIES.map(function(c){
+    var b = s.byCategory[c.key] || {total:0,done:0};
+    var pct = b.total>0 ? Math.round(b.done/b.total*100) : 0;
+    return '<div class="bar-row"><div class="name">'+c.label+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+c.color+';"></div></div><div class="pct">'+pct+'%</div></div>';
+  }).join("");
+
+  var heatDates = [];
+  if(state.meta.startDate && state.meta.endDate){
+    var cur = state.meta.startDate;
+    var guard=0;
+    while(cur <= state.meta.endDate && guard<400){ heatDates.push(cur); cur = addDays(cur,1); guard++; }
+  }
+  var heatHtml = heatDates.length ? heatDates.map(function(d){
+    var r = s.dayRate[d];
+    var bg = (r==null) ? "#eef0f6" : "rgba(79,124,255,"+(0.15+0.75*r)+")";
+    var day = d.slice(8,10);
+    return '<div class="heat-cell" style="background:'+bg+'" title="'+d+' · '+(r==null?'기록없음':Math.round(r*100)+'%')+'">'+day+'</div>';
+  }).join("") : '<div class="empty">설정 탭에서 방학 시작일/종료일을 입력하면 달력이 표시돼요.</div>';
+
+  return '<div class="card">' +
+    '<h2>전체 실천율</h2>' +
+    '<div class="stat-grid">' +
+      '<div class="stat-box"><div class="num">'+overallPct+'%</div><div class="lab">전체 실천율</div></div>' +
+      '<div class="stat-box"><div class="num">'+s.doneSlots+' / '+s.totalSlots+'</div><div class="lab">실행 슬롯 수</div></div>' +
+      '<div class="stat-box"><div class="num">'+s.streak+'일</div><div class="lab">연속 실천</div></div>' +
+    '</div>' +
+  '</div>' +
+  '<div class="card"><h2>요일별 실천율</h2>'+weekdayBars+'</div>' +
+  '<div class="card"><h2>카테고리별 실천율</h2>'+catBars+'</div>' +
+  '<div class="card"><h2>기간 달력</h2><div class="heatmap">'+heatHtml+'</div></div>';
+}
+
+/* ---------------- 이벤트 바인딩 ---------------- */
+function bindTabEvents(){
+  if(currentTab==="settings"){
+    byId("inName").addEventListener("change", function(e){ state.meta.name=e.target.value; save(); });
+    byId("inStart").addEventListener("change", function(e){ state.meta.startDate=e.target.value; save(); render(); });
+    byId("inEnd").addEventListener("change", function(e){ state.meta.endDate=e.target.value; save(); render(); });
+    byId("btnClearAll").addEventListener("click", function(){
+      if(confirm("정말 모든 데이터를 초기화할까요? 되돌릴 수 없어요.")){
+        state = defaultState(); save(); render();
+      }
+    });
+  } else if(currentTab==="template"){
+    document.querySelectorAll('[data-action="add-slot"]').forEach(function(btn){
+      btn.addEventListener("click", function(){ openSlotEditor(Number(btn.dataset.day)); });
+    });
+    document.querySelectorAll('[data-action="del-slot"]').forEach(function(btn){
+      btn.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        var day=Number(btn.dataset.day), id=btn.dataset.id;
+        state.template[day] = state.template[day].filter(function(s){ return s.id!==id; });
+        save(); render();
+      });
+    });
+    document.querySelectorAll(".slot").forEach(function(el){
+      el.addEventListener("click", function(){
+        var day=Number(el.dataset.day), id=el.dataset.id;
+        var slot = state.template[day].find(function(s){ return s.id===id; });
+        if(slot) openSlotEditor(day, slot);
+      });
+    });
+  } else if(currentTab==="today"){
+    byId("inTodayDate").addEventListener("change", function(e){ todaySelectedDate=e.target.value; render(); });
+    document.querySelectorAll('[data-action="toggle-slot"]').forEach(function(el){
+      el.addEventListener("click", function(){
+        var id = el.dataset.id;
+        var log = getLog(todaySelectedDate);
+        log.executed[id] = !log.executed[id];
+        save(); render();
+      });
+    });
+    byId("btnAddTodo").addEventListener("click", addTodoFromInput);
+    byId("inNewTodo").addEventListener("keydown", function(e){ if(e.key==="Enter") addTodoFromInput(); });
+    document.querySelectorAll('[data-action="toggle-todo"]').forEach(function(el){
+      el.addEventListener("click", function(){
+        var log = getLog(todaySelectedDate);
+        var t = log.todos.find(function(t){ return t.id===el.dataset.id; });
+        if(t){ t.done = !t.done; save(); render(); }
+      });
+    });
+    document.querySelectorAll('[data-action="del-todo"]').forEach(function(el){
+      el.addEventListener("click", function(){
+        var log = getLog(todaySelectedDate);
+        log.todos = log.todos.filter(function(t){ return t.id!==el.dataset.id; });
+        save(); render();
+      });
+    });
+    byId("inNote").addEventListener("change", function(e){
+      getLog(todaySelectedDate).note = e.target.value; save();
+    });
+  }
+}
+function addTodoFromInput(){
+  var input = byId("inNewTodo");
+  var text = input.value.trim();
+  if(!text) return;
+  var log = getLog(todaySelectedDate);
+  log.todos.push({id:uid(), text:text, done:false});
+  save(); render();
+}
+
+/* ---------------- 슬롯 추가/수정 모달 ---------------- */
+var modalDay = null, modalEditing = null, modalSelectedCat = "study";
+
+function openSlotEditor(day, existing){
+  modalDay = day;
+  modalEditing = existing || null;
+  modalSelectedCat = existing ? existing.category : "study";
+  byId("modalTitle").textContent = existing ? "시간 블록 수정" : "시간 블록 추가";
+  byId("modalLabel").value = existing ? existing.label : "";
+  byId("modalStart").value = existing ? existing.start : "09:00";
+  byId("modalEnd").value = existing ? existing.end : "10:00";
+  byId("modalDelete").style.display = existing ? "" : "none";
+  renderCatPicker();
+  byId("slotModal").classList.remove("hidden");
+}
+function closeSlotEditor(){
+  byId("slotModal").classList.add("hidden");
+  modalDay = null; modalEditing = null;
+}
+function renderCatPicker(){
+  var el = byId("modalCatPicker");
+  el.innerHTML = CATEGORIES.map(function(c){
+    return '<div class="cat-chip'+(c.key===modalSelectedCat?' selected':'')+'" data-cat="'+c.key+'" style="background:'+c.color+'">'+c.label+'</div>';
+  }).join("");
+  el.querySelectorAll(".cat-chip").forEach(function(chip){
+    chip.addEventListener("click", function(){
+      modalSelectedCat = chip.dataset.cat;
+      renderCatPicker();
+    });
+  });
+}
+byId("modalCancel").addEventListener("click", closeSlotEditor);
+byId("slotModal").addEventListener("click", function(e){ if(e.target.id==="slotModal") closeSlotEditor(); });
+byId("modalSave").addEventListener("click", function(){
+  var start = byId("modalStart").value || "09:00";
+  var end = byId("modalEnd").value || "10:00";
+  var label = byId("modalLabel").value.trim() || catLabel(modalSelectedCat);
+  if(modalEditing){
+    modalEditing.start=start; modalEditing.end=end; modalEditing.category=modalSelectedCat; modalEditing.label=label;
+  } else {
+    state.template[modalDay].push({id:uid(), start:start, end:end, category:modalSelectedCat, label:label});
+  }
+  save();
+  closeSlotEditor();
+  render();
+});
+byId("modalDelete").addEventListener("click", function(){
+  if(modalEditing){
+    state.template[modalDay] = state.template[modalDay].filter(function(s){ return s.id!==modalEditing.id; });
+    save();
+  }
+  closeSlotEditor();
+  render();
+});
+
+/* ---------------- 인쇄용 영역 ---------------- */
+function buildPrintArea(){
+  var area = document.getElementById("printArea");
+  var rows = "";
+  var maxRows = 0;
+  var perDay = DAY_ORDER.map(function(wd){
+    return (state.template[wd]||[]).slice().sort(function(a,b){return a.start.localeCompare(b.start);});
+  });
+  maxRows = Math.max.apply(null, perDay.map(function(a){return a.length;}).concat([0]));
+  var headerRow = "<tr><th>시간/요일</th>"+DAY_ORDER.map(function(wd){return "<th>"+DAY_LABELS[wd]+"</th>";}).join("")+"</tr>";
+  for(var r=0;r<maxRows;r++){
+    rows += "<tr><td></td>" + perDay.map(function(list){
+      var s = list[r];
+      return s ? "<td>"+s.start+"~"+s.end+"<br>"+escHtml(s.label)+"</td>" : "<td></td>";
+    }).join("") + "</tr>";
+  }
+  area.innerHTML = "<h1>방학 시간표"+(state.meta.name? " · "+escHtml(state.meta.name):"")+"</h1>" +
+    "<p>"+(state.meta.startDate||"")+" ~ "+(state.meta.endDate||"")+"</p>" +
+    "<table>"+headerRow+(rows||"<tr><td colspan='8'>등록된 시간표가 없습니다.</td></tr>")+"</table>";
+}
+
+byId("btnPrint").addEventListener("click", function(){ buildPrintArea(); window.print(); });
+byId("btnExport").addEventListener("click", function(){
+  if(typeof html2canvas === "undefined"){
+    alert("이미지 저장 기능을 불러오지 못했어요. 인터넷 연결을 확인해주세요.");
+    return;
+  }
+  var target = document.getElementById("app");
+  html2canvas(target, {backgroundColor:"#f4f6fb", scale:2}).then(function(canvas){
+    var link = document.createElement("a");
+    link.download = "방학시간표_"+currentTab+"_"+todayStr()+".png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }).catch(function(){
+    alert("이미지 저장 중 오류가 발생했어요.");
+  });
+});
+
+/* ---------------- 유틸 ---------------- */
+function byId(id){ return document.getElementById(id); }
+function escHtml(str){
+  return String(str==null?"":str).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function escAttr(str){ return escHtml(str); }
+
+switchTab("settings");
+})();
+</script>
+</body>
+</html>
